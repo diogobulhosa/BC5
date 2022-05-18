@@ -15,48 +15,97 @@ import finance_lib as fb
 
 test_list = ['ADA-USD','ATOM-USD','AVAX-USD','AXS-USD','BTC-USD','ETH-USD','LINK-USD','LUNA1-USD','MATIC-USD','SOL-USD']
 
+indicators_list = ['S&P 500', 'Dollar', 'Bollinger Bands','SMA30', 'CMA30', 'EMA30','Stochastic Oscillator', 'MACD', 'RSI', 'ADI', 'STDEV']
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 server = app.server
 
 tab_analysis =  html.Div([
-    ### choose circuit main information
+    ### choose coin
     html.Div([
         html.Div([
-            html.H4('Click on one of the red dots in the Map to select a circuit. (default: Circuit de Monaco)'),
+            html.H4('Choose crypto'),
             html.Br(), 
             dcc.Dropdown(
-            id='main_coin_dropdown',
-            value='BTC-USD',
-            multi=False,
-            options=test_list, 
-            style={'color': 'black', 'background-color':'#d3d3d3'}) ,
+                id='main_coin_dropdown',
+                value='BTC-USD',
+                multi=False,
+                options=test_list, 
+                style={'color': 'black', 'background-color':'#d3d3d3'}) ,
             dcc.DatePickerRange(
-                month_format='DoMMM Do, YY',
-                end_date_placeholder_text='MMM Do, YY',
-                start_date=date(2017, 6, 21)
-            ),
+                id = 'data_picker',
+                start_date=date(2017, 6, 21),
+                display_format='DD-MM-YYYY',
+                start_date_placeholder_text='DD-MM-YYYY',
+                style={'color': 'black', 'background-color':'#d3d3d3'}
+            )            
+            ], className='box', style={'margin-top': '1%'})
+    ],style={'margin-left': '0%'}),
+    ### indicators and graph
+    html.Div([
+        #### indicators / choose crypto
+        html.Div([
+            html.H3('Secondary Coin'),
+            dcc.Dropdown(
+                id='second_coin_dropdown',
+                multi=False,
+                options=test_list, 
+                style={'color': 'black', 'background-color':'#d3d3d3'}),
+            html.Br(),
+            html.H3('Financial Indicators'),
+            dcc.Checklist(
+                id='check_indicator',
+                options=indicators_list,
+                labelStyle={'display': 'block'},
+            )
+            ], className='box', style={'margin-top': '1%', 'width': '20%'}),
+        #### graph
+        html.Div([
+            html.H4('Choose crypto'),
+            html.Br(), 
             dcc.Graph(
                 id='graph_price'
-            )    
-            
-            ], className='box', style={'margin-top': '3%'})
-    ],style={'margin-left': '0%'})
+            )
+            ], className='box', style={'margin-top': '1%', 'width': '80%', 'margin-left': '2%'}),
+    ],className='circ_box',style={'margin-left': '0%'})
+
 ], className='main')
 
 tab_predictions =  html.Div([
-    
+    ## choose coin / target
+    html.Div([
+        html.Div([
+            html.H4('Choose crypto'),
+            html.Br(), 
+            dcc.Dropdown(
+                id='main_coin_dropdown_pred',
+                value='BTC-USD',
+                multi=False,
+                options=test_list, 
+                style={'color': 'black', 'background-color':'#d3d3d3'}) ,
+            dcc.DatePickerRange(
+                id = 'data_picker_pred',
+                start_date=date(2017, 6, 21),
+                display_format='DD-MM-YYYY',
+                start_date_placeholder_text='DD-MM-YYYY',
+                style={'color': 'black', 'background-color':'#d3d3d3'}
+            )            
+            ], className='box', style={'margin-top': '1%'})
+    ],style={'margin-left': '0%'}), 
+        
 ], className='main')
 
 
 app.layout = dbc.Container([               
         html.Div([
+            html.H1('Crypto Forecaster'),
+            html.Hr(),
             dbc.Tabs([
                     dbc.Tab(tab_analysis, label="Analysis", labelClassName ='labels', tabClassName = 'tabs'),
                     dbc.Tab(tab_predictions, label="Prediction", labelClassName ='labels', tabClassName = 'tabs', tab_style={'margin-left' : '0%'}),
                 ])
-        ],className='boxtabs', style={'margin-top': '3%', 'margin-left': '5%'}),
+        ],className='boxtabs', style={'margin-top': '0%', 'margin-left': '5%'}),
     ],
     fluid=True,
 )
@@ -65,21 +114,31 @@ app.layout = dbc.Container([
 
 @app.callback(
     Output(component_id='graph_price', component_property='figure'),
-    [Input('main_coin_dropdown', 'value')]
+    [Input('main_coin_dropdown', 'value'),
+     Input('second_coin_dropdown', 'value'),
+     Input('check_indicator', 'value'), 
+     Input('data_picker', 'start_date'),
+     Input('data_picker', 'end_date')]
 )
 
 ################################CALLBACKFUNCTIONCIRCUITS############################
 # recebe os years, retorna o grafico+lista de circuitos available nessa altura
-def callback_1(coin_name):
+def callback_1(coin_name, sec_coin_name, check_list, start_date, end_date):
+    print(coin_name,sec_coin_name, check_list, start_date, end_date)
     # create dataset
     df_coin = yf.download(coin_name,
-                      end=date.today() - timedelta(days=1), 
                       progress=False,
     )
 
-    #df_coin = fb.df_converter(df_coin)
+    df_coin = fb.df_converter(df_coin)
 
-    print(df_coin.columns)
+    if sec_coin_name: 
+       sec_df_coin = yf.download(sec_coin_name, 
+                      progress=False,
+    )
+
+
+    #print(df_coin.columns)
 
     # first viz 
     fig = px.line(df_coin, df_coin.index, y=df_coin['Close'])
