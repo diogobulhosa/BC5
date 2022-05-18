@@ -8,7 +8,7 @@ import numpy as np
 import plotly.express as px
 import dash_bootstrap_components as dbc
 import yfinance as yf
-from datetime import date
+from datetime import date, timedelta
 
 import finance_lib as fb
 
@@ -72,9 +72,8 @@ app.layout = dbc.Container([
 # recebe os years, retorna o grafico+lista de circuitos available nessa altura
 def callback_1(coin_name):
     # create dataset
-    df_coin = yf.download(coin_name, 
-                      start='2017-11-09', 
-                      end='2022-04-26', 
+    df_coin = yf.download(coin_name,
+                      end=date.today() - timedelta(days=1), 
                       progress=False,
     )
 
