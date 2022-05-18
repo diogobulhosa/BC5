@@ -78,12 +78,12 @@ def callback_1(coin_name):
                       progress=False,
     )
 
-    df_coin = fb.df_converter(df_coin)
+    #df_coin = fb.df_converter(df_coin)
 
     print(df_coin.columns)
 
     # first viz 
-    fig = px.line(df_coin, df_coin['Date'], y=df_coin['close'])
+    fig = px.line(df_coin, df_coin.index, y=df_coin['Close'])
 
     return fig
 ###################################################################################################################
