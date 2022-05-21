@@ -1,5 +1,5 @@
 body {
-    background-color:#1B1B1C;
+    background-color:#061E44;
     font-family: "Open Sans", verdana, arial, sans-serif;
   }
   
@@ -70,23 +70,22 @@ body {
   /* Boxes */
 
   .boxtabs {
-    border-radius: 20px;
-    background-color: #1B1B1C;
+    border-radius: 5px;
+    background-color: #061E44;
     padding: 2%;
     width:90%;
   }
 
   .box {
-    border-radius: 20px;
-    background-color: #39393A;
+    border-radius: 5px;
+    background-color: #09255d;
     padding: 25px;
-    box-shadow: 2px 2px 2px lightgrey;
     width:100%;
   }
     
   .box_circ_info{
     border-radius: 2px;
-    background-color: #5656568e;    
+    background-color: #061E44;    
     margin: 2px;
     box-shadow: 2px 2px 2px lightgrey;
     justify-content: left;
@@ -97,34 +96,35 @@ body {
   .circ_box {    
     display: flex;
     flex-wrap: nowrap;
-    background-color:#1B1B1C;
+    background-color:#061E44;
   }
 
   /* Tabs */
   .tabs {
-    border-top-left-radius:10px;
-    border-top-right-radius:10px;
+    border-top-left-radius:5px;
+    border-top-right-radius:5px;
     margin-top: 2%;
     margin-left : 5%;
     margin-bottom: 0%;
-    background-color: #39393A;  
+    background-color: #DFE3E8;  
     width: 20%;  
     text-align: center;
   }
 
   .labels {
-    color: firebrick;
+    color: #061E44;
   }
 
   /* button */
   .btn-group button {
-    background-color: #04AA6D; /* Green background */
-    border: 1px solid green; /* Green border */
-    color: white; /* White text */
+    background-color: white; /* Green background */
+    border: 1px solid white; /* Green border */
+    color: black; /* White text */
     padding: 10px 24px; /* Some padding */
     cursor: pointer; /* Pointer/hand icon */
     width: 50%; /* Set a width if needed */
     display: block; /* Make the buttons appear below each other */
+    outline: lightblue;
   }
 
   /* Slider */
