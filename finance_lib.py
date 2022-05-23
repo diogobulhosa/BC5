@@ -12,7 +12,7 @@ from datetime import datetime as dt
 from dateutil.relativedelta import *
 from datetime import timedelta
 
-from sklearn.ensemble import RandomForestRegressor
+from xgboost import XGBRegressor
 
 
 
@@ -89,6 +89,7 @@ def df_converter(df):
     result.dropna(inplace=True)
 
     return result 
+
 # to predict models functions
 def add_days(df, forecast_length):
     end_point = len(df)
@@ -132,6 +133,7 @@ def forecasting(model,df1, forecast_length):
         yhat.append(pred)
     yhat = np.array(yhat)
     return yhat
+
 def predictions(df_coin,model, forecast_lenght = 5, train_lenght = 100,target = 'Close'):
     """ df_coin must be with date in index,
         forecast_lenght is the amount of days that we will predict
@@ -188,9 +190,10 @@ def predictions(df_coin,model, forecast_lenght = 5, train_lenght = 100,target = 
     return fig2
 
 
-#def choose_model(model): 
-#    if model == 'RF': 
-#       return  RandomForestRegressor(random_state=10,criterion='mae', max_depth=20, max_features='auto', n_estimators=30)
+def choose_model(model): 
+   if model == 'XGB': 
+     return  XGBRegressor(random_state = 10 , booster= 'gblinear', n_estimators = 130, validate_parameters = False,disable_default_eval_metric=False,eta = 0.3)
+
     
 
 
