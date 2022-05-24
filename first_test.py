@@ -1,3 +1,4 @@
+from dis import code_info
 import dash
 from dash import dcc, dash_table
 from dash import html
@@ -11,6 +12,74 @@ import yfinance as yf
 from datetime import date, timedelta, datetime
 
 import finance_lib as fb
+
+import requests
+
+url = 'https://web-api.coinmarketcap.com/v1/cryptocurrency/listings/latest'
+list_crypto=[]
+for start in range(1, 20000, 5000):
+
+    params = {
+        'start': start,
+        'limit': 5000,
+    }
+
+    r = requests.get(url, params=params)
+    data = r.json()
+    for number, item in enumerate(data['data']):
+        a = f"{item['symbol']}-USD"
+        list_crypto.append(a)
+
+def update_client_valuev2(df, new_value): 
+    past_value = df.iloc[-1][1]
+    df2 = {'past_value': past_value, 'current_value': new_value, 'time': datetime.today()}   
+    df = df.append(df2, ignore_index = True)
+    return df
+def update_portfolio(df, value, signal, coin):
+
+    df_coin = yf.download(coin,
+                      start=date.today(), 
+                      progress=False,
+                      interval='1m'
+    )
+    if signal == 'buy':
+            if coin not in df['coin'].tolist():
+                                p= float(value/df_coin[df_coin.index == df_coin.index.min()]['Open'])
+                                df2 = {'coin': coin, 'percentage':p, 'spent':value}
+                                df = df.append(df2, ignore_index = True)
+
+            
+            else:
+
+                for i, coin_name in enumerate(df.coin):
+                    if coin_name==coin:
+                        df['percentage'][i] = df['percentage'][i] + (value/df_coin[df_coin.index == df_coin.index.min()]['Open'])
+                        df['spent'][i] = df['spent'][i] + value
+
+            
+    if signal == 'sell': 
+        for i, coin_name in enumerate(df.coin):
+                    if coin_name==coin:
+                        if float(df['percentage'][i] - (value/df_coin[df_coin.index == df_coin.index.min()]['Open'])) < 0: return 'error'
+                        df['percentage'][i] = df['percentage'][i] - (value/df_coin[df_coin.index == df_coin.index.min()]['Open'])
+                        df['spent'][i] = df['spent'][i] - value 
+        if coin not in df['coin'].tolist():
+            print('error: coin not found')
+    return df
+
+def total_value(df):
+    total = 0 
+    for i, v in enumerate(df['coin']):
+        df_coin = yf.download(v,
+                      start=date.today(), 
+                      progress=False,
+                      interval='1m'
+                    )
+
+        coin_value = df_coin[df_coin.index == df_coin.index.min()]['Open']
+        total = total + df['percentage'][i]*coin_value
+    
+    return float(total)
 
 def get_percentage_img(current_value, prev_value, height_size):
     fig = go.Figure()
@@ -34,13 +103,63 @@ def get_percentage_img(current_value, prev_value, height_size):
     return fig
 
 
-test_list = ['ADA-USD','ATOM-USD','AVAX-USD','AXS-USD','BTC-USD','ETH-USD','LINK-USD','LUNA1-USD','MATIC-USD','SOL-USD']
+
+
 
 indicators_list = ['S&P 500', 'Dollar', 'Bollinger Bands','SMA30', 'CMA30', 'EMA30','Stochastic Oscillator', 'MACD', 'RSI', 'ADI', 'STDEV']
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 server = app.server
+
+
+tab_portfolio =  html.Div([
+    ## choose coin / target
+    html.Div([
+        html.Div([
+            html.Div([
+                html.H4('Choose crypto'),
+                html.Br(),    
+                html.H3(id='portfolio_value'),       
+                ], className='box', style={'margin-top': '1%'}), # crypo choice over here
+            html.Div([
+                dcc.Dropdown(
+                    id='main_coin_dropdown_portfolio',
+                    value='BTC-USD',
+                    multi=False,
+                    options=list_crypto, 
+                    style={'color': 'black', 'background-color':'#d3d3d3'}) ,
+                html.H4('Choose Target'), 
+                dbc.RadioItems(
+                    id='buy_sell',
+                    className='radio',
+                    options=[dict(label='Buy', value=0), dict(label='Sell', value=1)],
+                    inline=True
+                    ), 
+                html.Br(), 
+                html.H4('Investment'),   
+                dcc.Input(id="investment", type="text", placeholder="", debounce=True),
+                html.Br(),             
+                ], className='box', style={'margin-top': '1%','width': '60%', 'margin-left': '1%'}) # crypo choice over here
+        ],className='info_box',style={'margin-left': '0%'}),
+    ## predictions graph
+    html.Div([
+            html.Div([
+                html.H4('Choose crypto'),
+                html.Br(),
+                ], className='box', style={'margin-top': '1%'}), # crypo choice over here
+            html.Div([
+                html.H4('Choose Target'), 
+                html.Br(),                                  
+                ], className='box', style={'margin-top': '1%','width': '60%', 'margin-left': '1%'}) # crypo choice over here
+        ],className='info_box',style={'margin-left': '0%'})
+    
+
+
+    ],style={'margin-left': '0%'}), 
+        
+], className='main')
+
 
 tab_analysis =  html.Div([
     ### choose coin
@@ -52,11 +171,13 @@ tab_analysis =  html.Div([
                 id='main_coin_dropdown',
                 value='BTC-USD',
                 multi=False,
-                options=test_list, 
+                options=list_crypto, 
                 style={'color': 'black', 'background-color':'#d3d3d3'}) ,
             dcc.DatePickerRange(
                 id = 'data_picker',
-                start_date=date(2017, 6, 21),
+                min_date_allowed = date(2014, 9, 17),
+                start_date=date(2014, 9, 17),
+                end_date=date.today(), 
                 display_format='DD-MM-YYYY',
                 start_date_placeholder_text='DD-MM-YYYY',
                 style={'color': 'black', 'background-color':'#d3d3d3'}
@@ -96,7 +217,7 @@ tab_analysis =  html.Div([
             dcc.Dropdown(
                 id='second_coin_dropdown',
                 multi=False,
-                options=test_list, 
+                options=list_crypto, 
                 style={'color': 'black', 'background-color':'#d3d3d3'}),
             html.Br(),
             html.H3('Financial Indicators'),
@@ -129,7 +250,7 @@ tab_predictions =  html.Div([
                     id='main_coin_dropdown_pred',
                     value='BTC-USD',
                     multi=False,
-                    options=test_list, 
+                    options=list_crypto, 
                     style={'color': 'black', 'background-color':'#d3d3d3'}) ,
                 dcc.DatePickerRange(
                     id = 'data_picker_pred',
@@ -182,7 +303,8 @@ app.layout = dbc.Container([
             html.Hr(style={'borderWidth': "0.3vh", "width": "100%", "backgroundColor": "#B4E1FF","opacity":"1"}),
             html.H2('Crypto Forecaster'),
             dbc.Tabs([
-                    dbc.Tab(tab_analysis, label="Analysis", labelClassName ='labels', tabClassName = 'tabs'),
+                    dbc.Tab(tab_portfolio, label="Portfolio", labelClassName ='labels', tabClassName = 'tabs', tab_style={'margin-left' : '0%'}),
+                    dbc.Tab(tab_analysis, label="Analysis", labelClassName ='labels', tabClassName = 'tabs', tab_style={'margin-left' : '0%'}),
                     dbc.Tab(tab_predictions, label="Prediction", labelClassName ='labels', tabClassName = 'tabs', tab_style={'margin-left' : '0%'}),
                 ])
         ],className='boxtabs', style={'margin-top': '0%', 'margin-left': '5%'}),
@@ -190,7 +312,48 @@ app.layout = dbc.Container([
     fluid=True,
 )
 
+################################CALLBACK - Portfolio############################################
+@app.callback(
+    Output(component_id='portfolio_value', component_property='children'),
+    [Input('main_coin_dropdown_portfolio', 'value'),
+     Input('buy_sell', 'value'), 
+     Input('investment', 'value')]
+)
+
+def callback_portfolio(coin_name, buy_sell, investment):
+    print(coin_name, buy_sell, investment)
+    df_portfolio = pd.read_csv (r'./portfolio.csv')
+    df_time = pd.read_csv (r'./client_valuev2.csv')
+    if buy_sell == 0: 
+        signal = 'buy'
+    else: signal = 'sell'
+
+    if (coin_name != None) and (investment != None):
+        df_portfolio = update_portfolio(df_portfolio, investment, signal, coin_name)
+        portfolio_value = total_value(df_portfolio)
+        df_time = update_client_valuev2(df_time, portfolio_value)
+        df_portfolio[['coin','percentage','spent']].to_csv('portfolio_test.csv',index=False)
+        df_time[['coin','percentage','time']].to_csv('client_valuev2_test.csv',index=False)
+    
+    return str(portfolio_value)
+
+
+
 ################################CALLBACK - Analysis############################################
+@app.callback(
+    [Output('data_picker', 'start_date'),
+     Output('data_picker', 'min_date_allowed')],
+    Input('main_coin_dropdown', 'value')
+)
+
+def callback_0(coin_name):
+    df_coin = yf.download(coin_name,
+                      progress=False,
+    )
+    crypto_first_day = df_coin.index.min()
+    return crypto_first_day, crypto_first_day
+
+
 
 @app.callback(
     [Output(component_id='graph_price', component_property='figure'),
@@ -208,7 +371,7 @@ app.layout = dbc.Container([
 
 ################################CALLBACKFUNCTIONANLYSIS############################
 def callback_1(coin_name, sec_coin_name, check_list, start_date, end_date):
-    print(coin_name,sec_coin_name, check_list, type(start_date), end_date)
+    #print(coin_name,sec_coin_name, check_list, type(start_date), end_date)
     # create dataset
     df_coin = yf.download(coin_name,
                       progress=False,
@@ -218,6 +381,17 @@ def callback_1(coin_name, sec_coin_name, check_list, start_date, end_date):
                       interval="1m",
                       progress=False,
     )
+
+    df_coin = df_coin[df_coin.index >=start_date]
+
+    # data conversion
+    newstartdate = start_date[:10]
+    newenddate=end_date[:10]
+    a = datetime.strptime(str(newstartdate), '%Y-%m-%d')
+    b = datetime.strptime(str(newenddate), '%Y-%m-%d')
+    delta = b - a
+    n_days = delta.days
+
     # testing? 
     df_sp500 = yf.download('^GSPC', 
                       progress=False)
@@ -264,8 +438,8 @@ def callback_1(coin_name, sec_coin_name, check_list, start_date, end_date):
       
 
     # first viz 
-    print('aqui')
-    fig = fb.candlestick(df_coin, days=100, indicators = check_list)
+    #print('aqui')
+    fig = fb.candlestick(df_coin, days=n_days, indicators = check_list)
 
     return fig,curr_price_fig,today_open_price,price_range_weeks,volume_today2week_fig,price_range
 ###################################################################################################################
@@ -289,8 +463,14 @@ def callback_2(coin_name, start_date_pred, end_date_pred, open_close):
     df_coin = yf.download(coin_name,
                       progress=False,
     )
+    # testing? 
+    df_sp500 = yf.download('^GSPC', 
+                      progress=False)
+    df_dollar = yf.download('DX=F',  
+                      progress=False)
+    #####
 
-    #df_coin = fb.df_converter(df_coin)
+    df_coin = fb.df_converter(df_coin, df_sp500, df_dollar)
     model = fb.choose_model('XGB')
 
     fig2 = fb.predictions(df_coin,model, 5,100,'Close')
