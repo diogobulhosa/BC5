@@ -51,9 +51,10 @@ body {
   h3 {
     margin-block-start:0.3em;
     font-family: 'Helvetica';
+    margin-top: 3%;
     color: white;
     font-weight:100;
-    font-size: 15px;
+    font-size: 18px;
   }
   
   h4 {

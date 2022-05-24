@@ -218,8 +218,14 @@ def callback_1(coin_name, sec_coin_name, check_list, start_date, end_date):
                       interval="1m",
                       progress=False,
     )
+    # testing? 
+    df_sp500 = yf.download('^GSPC', 
+                      progress=False)
+    df_dollar = yf.download('DX=F',  
+                      progress=False)
+    #####
 
-    #df_coin = fb.df_converter(df_coin)
+    df_coin = fb.df_converter(df_coin, df_sp500,df_dollar)
 
     # first viz 
     today = pd.to_datetime(datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)-timedelta(days=0))
@@ -258,14 +264,8 @@ def callback_1(coin_name, sec_coin_name, check_list, start_date, end_date):
       
 
     # first viz 
-    fig = px.line(df_coin, df_coin.index, y=df_coin['Close'])
-    fig.update_layout(
-        template="plotly_dark",
-        plot_bgcolor = 'rgba(0, 0, 0, 0)',
-        paper_bgcolor = 'rgba(0, 0, 0, 0)',
-        font_color="white",
-        font_size= 15
-    )
+    print('aqui')
+    fig = fb.candlestick(df_coin, days=100, indicators = check_list)
 
     return fig,curr_price_fig,today_open_price,price_range_weeks,volume_today2week_fig,price_range
 ###################################################################################################################
