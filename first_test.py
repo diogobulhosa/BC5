@@ -30,56 +30,6 @@ for start in range(1, 20000, 5000):
         a = f"{item['symbol']}-USD"
         list_crypto.append(a)
 
-def update_client_valuev2(df, new_value): 
-    past_value = df.iloc[-1][1]
-    df2 = {'past_value': past_value, 'current_value': new_value, 'time': datetime.today()}   
-    df = df.append(df2, ignore_index = True)
-    return df
-def update_portfolio(df, value, signal, coin):
-
-    df_coin = yf.download(coin,
-                      start=date.today(), 
-                      progress=False,
-                      interval='1m'
-    )
-    if signal == 'buy':
-            if coin not in df['coin'].tolist():
-                                p= float(value/df_coin[df_coin.index == df_coin.index.min()]['Open'])
-                                df2 = {'coin': coin, 'percentage':p, 'spent':value}
-                                df = df.append(df2, ignore_index = True)
-
-            
-            else:
-
-                for i, coin_name in enumerate(df.coin):
-                    if coin_name==coin:
-                        df['percentage'][i] = df['percentage'][i] + (value/df_coin[df_coin.index == df_coin.index.min()]['Open'])
-                        df['spent'][i] = df['spent'][i] + value
-
-            
-    if signal == 'sell': 
-        for i, coin_name in enumerate(df.coin):
-                    if coin_name==coin:
-                        if float(df['percentage'][i] - (value/df_coin[df_coin.index == df_coin.index.min()]['Open'])) < 0: return 'error'
-                        df['percentage'][i] = df['percentage'][i] - (value/df_coin[df_coin.index == df_coin.index.min()]['Open'])
-                        df['spent'][i] = df['spent'][i] - value 
-        if coin not in df['coin'].tolist():
-            print('error: coin not found')
-    return df
-
-def total_value(df):
-    total = 0 
-    for i, v in enumerate(df['coin']):
-        df_coin = yf.download(v,
-                      start=date.today(), 
-                      progress=False,
-                      interval='1m'
-                    )
-
-        coin_value = df_coin[df_coin.index == df_coin.index.min()]['Open']
-        total = total + df['percentage'][i]*coin_value
-    
-    return float(total)
 
 def get_percentage_img(current_value, prev_value, height_size):
     fig = go.Figure()
@@ -129,7 +79,7 @@ tab_portfolio =  html.Div([
                     multi=False,
                     options=list_crypto, 
                     style={'color': 'black', 'background-color':'#d3d3d3'}) ,
-                html.H4('Choose Target'), 
+                html.Br(), 
                 dbc.RadioItems(
                     id='buy_sell',
                     className='radio',
@@ -194,19 +144,19 @@ tab_analysis =  html.Div([
             html.Div([
                         html.H4('Open', style={'font-weight':'bold'}),
                         html.H3(id='today_open_price')
-                    ],className='box_crypto_info'),
+                    ],className='box_crypto_info',style={'width': '25%'}),
             html.Div([
                         html.H4('Day Range', style={'font-weight':'bold'}),
                         html.H3(id='price_range')
-                    ],className='box_crypto_info'),
+                    ],className='box_crypto_info',style={'width': '25%'}),
             html.Div([
                         html.H4('Volume (%-w)', style={'font-weight':'bold'}),
                         dcc.Graph(id='volume_today2week_fig')
-                    ],className='box_crypto_info'),
+                    ],className='box_crypto_info',style={'width': '25%'}),
             html.Div([
                         html.H4('52-Week Range', style={'font-weight':'bold'}),
                         html.H3(id='price_range_weeks')
-                    ],className='box_crypto_info'),             
+                    ],className='box_crypto_info',style={'width': '25%'}),             
             ], className='info_box', style={'margin-top': '1%'})
     ],style={'margin-left': '0%'}),
     ### indicators and graph
@@ -322,18 +272,15 @@ app.layout = dbc.Container([
 
 def callback_portfolio(coin_name, buy_sell, investment):
     print(coin_name, buy_sell, investment)
-    df_portfolio = pd.read_csv (r'./portfolio.csv')
-    df_time = pd.read_csv (r'./client_valuev2.csv')
+    df_portfolio = pd.read_csv (r'./portfolio_test.csv')
+    df_time = pd.read_csv (r'./client_valuev2_test.csv')
     if buy_sell == 0: 
         signal = 'buy'
     else: signal = 'sell'
 
     if (coin_name != None) and (investment != None):
-        df_portfolio = update_portfolio(df_portfolio, investment, signal, coin_name)
-        portfolio_value = total_value(df_portfolio)
-        df_time = update_client_valuev2(df_time, portfolio_value)
-        df_portfolio[['coin','percentage','spent']].to_csv('portfolio_test.csv',index=False)
-        df_time[['coin','percentage','time']].to_csv('client_valuev2_test.csv',index=False)
+       portfolio_value = 10
+
     
     return str(portfolio_value)
 
