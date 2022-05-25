@@ -13,6 +13,7 @@ from datetime import date, timedelta, datetime
 
 import finance_lib as fb
 
+
 import requests
 
 url = 'https://web-api.coinmarketcap.com/v1/cryptocurrency/listings/latest'
@@ -31,14 +32,15 @@ for start in range(1, 20000, 5000):
         list_crypto.append(a)
 
 
-def get_percentage_img(current_value, prev_value, height_size):
+def get_percentage_img(current_value, prev_value, height_size, prefix):
     fig = go.Figure()
     
     fig.add_trace(go.Indicator(
         mode = "number+delta",
         title = {"text": "1D Price Change"},
         value = current_value,
-        delta = {'reference': prev_value, 'relative': True, 'valueformat':'.2%'},
+        delta = {'reference': prev_value, 'relative': True, 'valueformat':'.3%'},
+        number={'valueformat':".5f",'prefix':prefix},
         domain = {'x': [0, 1], 'y': [0, 1]}))
     fig.update_layout(
             template="plotly_dark",
@@ -49,14 +51,17 @@ def get_percentage_img(current_value, prev_value, height_size):
             margin={'t': 0,'l':0,'b':10,'r':0},
             height=height_size
         )
-
     return fig
 
 
 
-
-
-indicators_list = ['S&P 500', 'Dollar', 'Bollinger Bands','SMA30', 'CMA30', 'EMA30','Stochastic Oscillator', 'MACD', 'RSI', 'ADI', 'STDEV']
+indicators_list = ['S&P 500', 'Dollar', 'Bollinger Bands','SMA30', 'CMA30', 'EMA30','Stochastic Oscillator', 'MACD', 'RSI', 'ADX', 'STDEV']
+# testing? 
+df_sp500_to_pass = yf.download('^GSPC', 
+                      progress=False)
+df_dollar_to_pass = yf.download('DX=F',  
+                      progress=False)
+    #####
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -126,6 +131,7 @@ tab_analysis =  html.Div([
             dcc.DatePickerRange(
                 id = 'data_picker',
                 min_date_allowed = date(2014, 9, 17),
+                max_date_allowed = date.today(),
                 start_date=date(2014, 9, 17),
                 end_date=date.today(), 
                 display_format='DD-MM-YYYY',
@@ -278,6 +284,8 @@ def callback_portfolio(coin_name, buy_sell, investment):
         signal = 'buy'
     else: signal = 'sell'
 
+    portfolio_value = 10
+    
     if (coin_name != None) and (investment != None):
        portfolio_value = 10
 
@@ -299,8 +307,6 @@ def callback_0(coin_name):
     )
     crypto_first_day = df_coin.index.min()
     return crypto_first_day, crypto_first_day
-
-
 
 @app.callback(
     [Output(component_id='graph_price', component_property='figure'),
@@ -340,11 +346,14 @@ def callback_1(coin_name, sec_coin_name, check_list, start_date, end_date):
     n_days = delta.days
 
     # testing? 
-    df_sp500 = yf.download('^GSPC', 
-                      progress=False)
-    df_dollar = yf.download('DX=F',  
-                      progress=False)
+    #df_sp500 = yf.download('^GSPC', 
+    #                  progress=False)
+    #df_dollar = yf.download('DX=F',  
+    #                  progress=False)
     #####
+
+    df_sp500 = df_sp500_to_pass.copy()
+    df_dollar = df_dollar_to_pass.copy()
 
     df_coin = fb.df_converter(df_coin, df_sp500,df_dollar)
 
@@ -352,8 +361,8 @@ def callback_1(coin_name, sec_coin_name, check_list, start_date, end_date):
     today = pd.to_datetime(datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)-timedelta(days=0))
     df_coin_day.index = df_coin_day.index.tz_localize(None)
     current_price = df_coin_day['Close'].iloc[-1]
-    today_open_price_not_round = df_coin_day[df_coin_day.index == today]['Open'][0]
-    curr_price_fig = get_percentage_img(current_price, today_open_price_not_round, 80)
+    today_open_price_not_round = df_coin_day[df_coin_day.index >= today]['Open'][0]    
+    curr_price_fig = get_percentage_img(current_price, today_open_price_not_round, 80, '$')
 
 
     #crypto first day in dataset
@@ -362,26 +371,26 @@ def callback_1(coin_name, sec_coin_name, check_list, start_date, end_date):
     crypto_first_day
 
     # open price today
-    today_open_price = str(round(df_coin_day[df_coin_day.index == today]['Open'][0],2))
+    today_open_price = round(today_open_price_not_round,5)
     #print(today_open_price)
 
     #52-weeks 
     fiftytwo_weeks = pd.to_datetime(datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)-timedelta(weeks=52))
     high_fiftytwo_weeks=df_coin[df_coin.index >= fiftytwo_weeks]['High'].max()
     low_fiftytwo_weeks=df_coin[df_coin.index >= fiftytwo_weeks]['Low'].min()
-    price_range_weeks = str(round(low_fiftytwo_weeks, 2))+' - '+str(round(high_fiftytwo_weeks, 2))
+    price_range_weeks = str(round(low_fiftytwo_weeks, 5))+' - '+str(round(high_fiftytwo_weeks, 5))
 
     # last volume 
     yesterday = pd.to_datetime(datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)-timedelta(days=1))
     weekly_yesterday = pd.to_datetime(datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)-timedelta(days=7))
     before_volume = df_coin[df_coin.index == weekly_yesterday]['Volume'][0]
     last_volume = df_coin[df_coin.index == yesterday]['Volume'][0]
-    volume_today2week_fig = get_percentage_img(last_volume, before_volume, 50)
+    volume_today2week_fig = get_percentage_img(last_volume, before_volume, 50,'')
 
     # price range today
     today_high = df_coin_day[df_coin_day.index >= today]['High'].max()
     today_low = df_coin_day[df_coin_day.index >= today]['Low'].min()
-    price_range = str(round(today_low, 2))+' - '+str(round(today_high, 2))
+    price_range = str(round(today_low, 5))+' - '+str(round(today_high, 5))
       
 
     # first viz 
@@ -410,16 +419,13 @@ def callback_2(coin_name, start_date_pred, end_date_pred, open_close):
     df_coin = yf.download(coin_name,
                       progress=False,
     )
-    # testing? 
-    df_sp500 = yf.download('^GSPC', 
-                      progress=False)
-    df_dollar = yf.download('DX=F',  
-                      progress=False)
-    #####
 
+    df_sp500 = df_sp500_to_pass.copy()
+    df_dollar = df_dollar_to_pass.copy()
+    
+    print('oi')
     df_coin = fb.df_converter(df_coin, df_sp500, df_dollar)
-    model = fb.choose_model('XGB')
-
+    model = 'XGB'
     fig2 = fb.predictions(df_coin,model, 5,100,'Close')
 
     fig2.update_layout(

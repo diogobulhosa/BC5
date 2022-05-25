@@ -14,7 +14,12 @@ from datetime import datetime as dt
 from dateutil.relativedelta import *
 from datetime import timedelta
 
-from xgboost import XGBRegressor
+# Models
+#from sklearn.ensemble import GradientBoostingRegressor
+#from sklearn.ensemble import RandomForestRegressor
+#from xgboost import XGBRegressor
+#from sklearn.neural_network import MLPRegressor
+
 
 
 
@@ -136,7 +141,7 @@ def forecasting(model,df1, forecast_length):
     yhat = np.array(yhat)
     return yhat
 
-def predictions(df_coin,model, forecast_lenght = 5, train_lenght = 100,target = 'Close'):
+def predictions(df_coin,model_str, forecast_lenght = 5, train_lenght = 100,target = 'Close'):
     """ df_coin must be with date in index,
         forecast_lenght is the amount of days that we will predict
         model is the model predefined to use to get our predictions
@@ -144,6 +149,9 @@ def predictions(df_coin,model, forecast_lenght = 5, train_lenght = 100,target = 
         target is what we are predicting
         This will return a graphic that will contain the data from the train set and our predictions
     """
+    if model_str == 'XGB': 
+        #model = RandomForestRegressor(random_state=10,criterion='mae', max_depth=20, max_features='sqrt', n_estimators=50)
+        print('hello')
     df_coin = df_coin.tail(train_lenght)
     df_coin.reset_index(inplace=True)
     df_coin['Date'] = pd.to_datetime(df_coin['Date'], format='%Y-%m-%d')
@@ -192,9 +200,6 @@ def predictions(df_coin,model, forecast_lenght = 5, train_lenght = 100,target = 
     return fig2
 
 
-def choose_model(model): 
-   if model == 'XGB': 
-     return  XGBRegressor(random_state = 10 , booster= 'gblinear', n_estimators = 130, validate_parameters = False,disable_default_eval_metric=False,eta = 0.3)
 
 
 def list_converter(indicators): 
