@@ -87,14 +87,14 @@ tab_portfolio =  html.Div([
     html.Div([
         html.Div([
             html.Div([
-                html.H4('Choose crypto'),
                 html.Button('Start New Portfolio', id='start_portfolio'),
+                html.H4('Click here to reset portfolio'),
                 dcc.Store(id='store_summary', data =[], storage_type = 'memory'),
                 dcc.Store(id='store_transactions', data =[], storage_type = 'memory'),  
                 dcc.Store(id='portfolio_state', data =[], storage_type = 'memory'), 
                 html.Br(),    
                 html.H3(id='portfolio_value'),
-                html.H3(id='number of purchases'),    
+                html.H2(id='Your Portfolio'),    
                 dcc.Graph(id='portfolio_pie')
                 ], className='box', style={'margin-top': '1%'}), # crypo choice over here
             html.Div([
@@ -107,6 +107,7 @@ tab_portfolio =  html.Div([
                 dcc.DatePickerSingle(
                     id='date_bought_portfolio',
                     max_date_allowed=date.today(),
+                    display_format='DD-MM-YYYY',
                     date=date(2020, 8, 25)), # change this
                 html.Br(), 
                 html.Br(), 
@@ -120,7 +121,30 @@ tab_portfolio =  html.Div([
                 html.H4('Investment'),   
                 dcc.Input(id="investment", type="text", placeholder="", debounce=True),
                 html.Br(),         
-                html.Button('Make Purchase', id='make_purchase'),    
+                html.Button('Make Purchase', id='make_purchase'), 
+                ## daqui
+                html.Div([
+                    html.Div([
+                        html.Div([
+                                    html.H4('AVG Investment', style={'font-weight':'bold'}),
+                                    html.H3(id='avg_invest')
+                                ],className='box_crypto_info',style={'width': '25%'}),
+                        html.Div([
+                                    html.H4('Biggest Investment', style={'font-weight':'bold'}),
+                                    html.H3(id='big_invest')
+                                ],className='box_crypto_info',style={'width': '25%'}),
+                        html.Div([
+                                    html.H4('Total Investments', style={'font-weight':'bold'}),
+                                    html.H3(id='total_invest')
+                                ],className='box_crypto_info',style={'width': '25%'}),
+                        html.Div([
+                                    html.H4('Portfolio Value', style={'font-weight':'bold'}),
+                                    dcc.Graph(id='port_total_value')
+                                ],className='box_crypto_info',style={'width': '25%'}),            
+                        ], className='info_box', style={'margin-top': '5%'})
+                ],style={'margin-left': '0%'}),
+                ## aqui 
+               
                 ], className='box', style={'margin-top': '1%','width': '60%', 'margin-left': '1%'}) # crypo choice over here
         ],className='info_box',style={'margin-left': '0%'}),
     ## predictions graph
@@ -295,11 +319,14 @@ app.layout = dbc.Container([
 
 ################################CALLBACK - Portfolio############################################
 @app.callback(
-    [Output(component_id='portfolio_value', component_property='children'),
-     Output(component_id='portfolio_pie', component_property='figure'),
+    [Output(component_id='portfolio_pie', component_property='figure'),
      Output(component_id='store_transactions', component_property='data'),
      Output(component_id='store_summary', component_property='data'), 
-     Output(component_id='portfolio_state', component_property='data')],
+     Output(component_id='portfolio_state', component_property='data'),
+     Output(component_id='total_invest', component_property='children'),
+     Output(component_id='port_total_value', component_property='figure'),
+     Output(component_id='avg_invest', component_property='children'),
+     Output(component_id='big_invest', component_property='children'),],
     [Input('start_portfolio', 'n_clicks'),
      Input('store_summary', 'data'),
      Input('store_transactions', 'data'),
@@ -311,13 +338,12 @@ app.layout = dbc.Container([
      Input('portfolio_state', 'data')]
 )
 
-def callback_portfolio_create(start_new_portfolio,dict_summary, dict_transactions, coin_name, portfolio_date, buy_sell, investment, n_purchases, portfolio_state):
+def callback_portfolio_create(start_portfolio, dict_summary, dict_transactions, coin_name, portfolio_date, buy_sell, investment, n_purchases, portfolio_state):
     print(n_purchases)
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
 
     if 'start_portfolio' in changed_id:
         print('Reiniciar Portfolio') 
-        print(start_new_portfolio)
         df_summary = df_summary_to_pass.copy()
         df_transactions = df_transactions_to_pass.copy()
 
@@ -328,7 +354,12 @@ def callback_portfolio_create(start_new_portfolio,dict_summary, dict_transaction
         fig.update_layout(width=500, height=500,paper_bgcolor='rgba(0,0,0,0)',
                                             plot_bgcolor='rgba(0,0,0,0)', font_color = 'white')
         n_purchases=0
-        return n_purchases, fig, df_transactions.to_dict(orient='records'),df_summary.to_dict(orient='records'), portfolio_state    
+        avg_invest=0
+        big_invest=0
+        port_total_value = 0 
+        invest_total_value = 0
+        portfolio_flunctuation_fig = get_percentage_img(port_total_value, invest_total_value, 50, prefix = '$')
+        return fig, df_transactions.to_dict(orient='records'),df_summary.to_dict(orient='records'), portfolio_state, invest_total_value, portfolio_flunctuation_fig, avg_invest, big_invest    
     else: 
         print(dict_transactions)
         # se tentou comprar
@@ -363,7 +394,13 @@ def callback_portfolio_create(start_new_portfolio,dict_summary, dict_transaction
                                 hole=.4,color_discrete_sequence=px.colors.qualitative.T10))
                         fig.update_layout(width=800, height=600,paper_bgcolor='rgba(0,0,0,0)',
                                             plot_bgcolor='rgba(0,0,0,0)', font_color = 'white')
-                        return n_purchases, fig, df_transactions.to_dict(orient='records'),df_summary.to_dict(orient='records'), portfolio_state
+                        
+                        avg_invest = round(df_transactions['Value'].mean(),2)
+                        big_invest = df_transactions['Value'].max()
+                        port_total_value = df_summary['Value'].sum()
+                        invest_total_value = df_transactions['Value'].sum()
+                        portfolio_flunctuation_fig = get_percentage_img(port_total_value, invest_total_value, 50, prefix = '$')
+                        return fig, df_transactions.to_dict(orient='records'),df_summary.to_dict(orient='records'), portfolio_state, invest_total_value, portfolio_flunctuation_fig, avg_invest, big_invest 
                 else:      
                         print('Investimento feito -> criar dicionário por ser o primeiro') 
                         df_summary = df_summary_to_pass.copy()
@@ -390,7 +427,12 @@ def callback_portfolio_create(start_new_portfolio,dict_summary, dict_transaction
                                 hole=.4,color_discrete_sequence=px.colors.qualitative.T10))
                         fig.update_layout(width=800, height=600,paper_bgcolor='rgba(0,0,0,0)',
                                             plot_bgcolor='rgba(0,0,0,0)', font_color = 'white')
-                        return n_purchases, fig, df_transactions.to_dict(orient='records'),df_summary.to_dict(orient='records'), portfolio_state    
+                        avg_invest = round(df_transactions['Value'].mean(),2)
+                        big_invest = df_transactions['Value'].max()
+                        port_total_value = df_summary['Value'].sum()
+                        invest_total_value = df_transactions['Value'].sum()
+                        portfolio_flunctuation_fig = get_percentage_img(port_total_value, invest_total_value, 50, prefix = '$')
+                        return fig, df_transactions.to_dict(orient='records'),df_summary.to_dict(orient='records'), portfolio_state, invest_total_value, portfolio_flunctuation_fig, avg_invest, big_invest 
             else: 
                 print('Investimento por fazer: waiting') 
                 return dash.no_update # atualizar para só faz update
