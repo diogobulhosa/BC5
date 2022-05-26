@@ -149,7 +149,7 @@ def predictions(df_coin,model_str, forecast_lenght = 5, train_lenght = 100,targe
         target is what we are predicting
         This will return a graphic that will contain the data from the train set and our predictions
     """
-    if model_str == 'XGB': 
+    if model_str == 'RF': 
         #model = RandomForestRegressor(random_state=10,criterion='mae', max_depth=20, max_features='sqrt', n_estimators=50)
         print('hello')
     df_coin = df_coin.tail(train_lenght)
@@ -198,9 +198,6 @@ def predictions(df_coin,model_str, forecast_lenght = 5, train_lenght = 100,targe
                 ]
         ))
     return fig2
-
-
-
 
 def list_converter(indicators): 
     for i,indicator in enumerate(indicators):
@@ -613,3 +610,33 @@ def candlestick(df, days, comparison = None, indicators = None):
         font_size= 15
     )       
     return fig
+
+
+#functions for user
+def portofolio (df_transactions, signal, value, date, df_coin, coin, df_summary):
+    value_at_day = df_coin[df_coin.index == date]['Close'][0]
+    percentage = value/value_at_day
+    list_to_add = [coin, date, percentage, value, signal]
+    df_length = len(df_transactions)
+    df_transactions.loc[df_length] = list_to_add
+
+    for coins in df_transactions['Coin'].unique():
+        if coins == coin:
+            if ~(df_summary['Coin'].str.contains(coins).any()):
+                    for idx,percentage in enumerate(df_transactions['Percentage']):
+                        df_summary.drop(df_summary.index[df_summary['Coin'] == coins], inplace=True)
+                        df_length = len(df_summary)
+                        actual_value = percentage * df_coin.tail(1)['Close'][0]
+                        df_summary.loc[df_length] = [coins, percentage,actual_value]
+            else:
+                    value_to_add = 0
+                    for idx,percentage in enumerate(df_transactions[df_transactions['Coin'] == coins]['Percentage']):
+                        value_to_add += percentage
+                        actual_value = value_to_add * df_coin.tail(1)['Close'][0]
+                        df_summary.drop(df_summary.index[df_summary['Coin'] == coins], inplace=True)
+                        df_length = len(df_summary)
+                        df_summary.loc[df_length] = [coins, value_to_add,actual_value]
+
+    return df_transactions, df_summary
+
+

@@ -1,4 +1,5 @@
 from dis import code_info
+from queue import Empty
 import dash
 from dash import dcc, dash_table
 from dash import html
@@ -31,7 +32,19 @@ for start in range(1, 20000, 5000):
         a = f"{item['symbol']}-USD"
         list_crypto.append(a)
 
-
+########################### DASH UTILS #################################
+indicators_list = ['S&P 500', 'Dollar', 'Bollinger Bands','SMA30', 'CMA30', 'EMA30','Stochastic Oscillator', 'MACD', 'RSI', 'ADX', 'STDEV']
+# testing? 
+df_sp500_to_pass = yf.download('^GSPC', 
+                      progress=False)
+df_dollar_to_pass = yf.download('DX=F',  
+                      progress=False)
+#####
+df_summary_to_pass = pd.DataFrame(columns=['Coin', 'Percentage','Value'])
+df_transactions_to_pass = pd.DataFrame(columns=['Coin', 'Date', 'Percentage', 'Value', 'Signal'])
+made_purchase = 0
+#########################################################################
+########################### DASH FUNCTIONS ##############################
 def get_percentage_img(current_value, prev_value, height_size, prefix):
     fig = go.Figure()
     
@@ -53,20 +66,21 @@ def get_percentage_img(current_value, prev_value, height_size, prefix):
         )
     return fig
 
-
-
-indicators_list = ['S&P 500', 'Dollar', 'Bollinger Bands','SMA30', 'CMA30', 'EMA30','Stochastic Oscillator', 'MACD', 'RSI', 'ADX', 'STDEV']
-# testing? 
-df_sp500_to_pass = yf.download('^GSPC', 
-                      progress=False)
-df_dollar_to_pass = yf.download('DX=F',  
-                      progress=False)
-    #####
+def atualization(df_summary):
+    value_list=[]
+    for idx,coins in enumerate(df_summary['Coin'].unique()):
+        df_coin = yf.download(coins, progress=False)
+        value_to_add = df_coin.tail(1)['Close'][0] * df_summary[df_summary['Coin'] == coins]['Percentage'][idx]
+        value_list.append(round(value_to_add,2))
+    
+    df_summary.drop('Value', axis=1, inplace=True)
+    df_summary['Value'] = value_list
+    return df_summary
+##########################################################################
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 server = app.server
-
 
 tab_portfolio =  html.Div([
     ## choose coin / target
@@ -74,8 +88,14 @@ tab_portfolio =  html.Div([
         html.Div([
             html.Div([
                 html.H4('Choose crypto'),
+                html.Button('Start New Portfolio', id='start_portfolio'),
+                dcc.Store(id='store_summary', data =[], storage_type = 'memory'),
+                dcc.Store(id='store_transactions', data =[], storage_type = 'memory'),  
+                dcc.Store(id='portfolio_state', data =[], storage_type = 'memory'), 
                 html.Br(),    
-                html.H3(id='portfolio_value'),       
+                html.H3(id='portfolio_value'),
+                html.H3(id='number of purchases'),    
+                dcc.Graph(id='portfolio_pie')
                 ], className='box', style={'margin-top': '1%'}), # crypo choice over here
             html.Div([
                 dcc.Dropdown(
@@ -84,6 +104,11 @@ tab_portfolio =  html.Div([
                     multi=False,
                     options=list_crypto, 
                     style={'color': 'black', 'background-color':'#d3d3d3'}) ,
+                dcc.DatePickerSingle(
+                    id='date_bought_portfolio',
+                    max_date_allowed=date.today(),
+                    date=date(2020, 8, 25)), # change this
+                html.Br(), 
                 html.Br(), 
                 dbc.RadioItems(
                     id='buy_sell',
@@ -94,7 +119,8 @@ tab_portfolio =  html.Div([
                 html.Br(), 
                 html.H4('Investment'),   
                 dcc.Input(id="investment", type="text", placeholder="", debounce=True),
-                html.Br(),             
+                html.Br(),         
+                html.Button('Make Purchase', id='make_purchase'),    
                 ], className='box', style={'margin-top': '1%','width': '60%', 'margin-left': '1%'}) # crypo choice over here
         ],className='info_box',style={'margin-left': '0%'}),
     ## predictions graph
@@ -210,7 +236,7 @@ tab_predictions =  html.Div([
                     style={'color': 'black', 'background-color':'#d3d3d3'}) ,
                 dcc.DatePickerRange(
                     id = 'data_picker_pred',
-                    start_date=date(2017, 6, 21),
+                    start_date=date(2020, 6, 21),
                     display_format='DD-MM-YYYY',
                     start_date_placeholder_text='DD-MM-YYYY',
                     style={'color': 'black', 'background-color':'#d3d3d3'})            
@@ -252,7 +278,6 @@ tab_predictions =  html.Div([
         
 ], className='main')
 
-
 app.layout = dbc.Container([               
         html.Div([
             html.H1('INVESTMENT4ALL'),
@@ -270,31 +295,111 @@ app.layout = dbc.Container([
 
 ################################CALLBACK - Portfolio############################################
 @app.callback(
-    Output(component_id='portfolio_value', component_property='children'),
-    [Input('main_coin_dropdown_portfolio', 'value'),
+    [Output(component_id='portfolio_value', component_property='children'),
+     Output(component_id='portfolio_pie', component_property='figure'),
+     Output(component_id='store_transactions', component_property='data'),
+     Output(component_id='store_summary', component_property='data'), 
+     Output(component_id='portfolio_state', component_property='data')],
+    [Input('start_portfolio', 'n_clicks'),
+     Input('store_summary', 'data'),
+     Input('store_transactions', 'data'),
+     Input('main_coin_dropdown_portfolio', 'value'),
+     Input('date_bought_portfolio', 'date'),
      Input('buy_sell', 'value'), 
-     Input('investment', 'value')]
+     Input('investment', 'value'),
+     Input('make_purchase', 'n_clicks'), 
+     Input('portfolio_state', 'data')]
 )
 
-def callback_portfolio(coin_name, buy_sell, investment):
-    print(coin_name, buy_sell, investment)
-    df_portfolio = pd.read_csv (r'./portfolio_test.csv')
-    df_time = pd.read_csv (r'./client_valuev2_test.csv')
-    if buy_sell == 0: 
-        signal = 'buy'
-    else: signal = 'sell'
+def callback_portfolio_create(start_new_portfolio,dict_summary, dict_transactions, coin_name, portfolio_date, buy_sell, investment, n_purchases, portfolio_state):
+    print(n_purchases)
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
 
-    portfolio_value = 10
+    if 'start_portfolio' in changed_id:
+        print('Reiniciar Portfolio') 
+        print(start_new_portfolio)
+        df_summary = df_summary_to_pass.copy()
+        df_transactions = df_transactions_to_pass.copy()
+
+        fig = go.Figure(px.pie(labels=df_summary['Coin'],
+                                values=df_summary['Value'],
+                                names = df_summary['Coin'],
+                                hole=.4,color_discrete_sequence=px.colors.qualitative.T10))
+        fig.update_layout(width=500, height=500,paper_bgcolor='rgba(0,0,0,0)',
+                                            plot_bgcolor='rgba(0,0,0,0)', font_color = 'white')
+        n_purchases=0
+        return n_purchases, fig, df_transactions.to_dict(orient='records'),df_summary.to_dict(orient='records'), portfolio_state    
+    else: 
+        print(dict_transactions)
+        # se tentou comprar
+        if 'make_purchase' in changed_id:
+            # se conseguir fazer investimento faz
+            if (coin_name!=None) and (portfolio_date!=None) and (investment!=None) and (n_purchases!=None):
+                # # se dicionários não vazios cria transações ou dá update
+                if dict_transactions:      
+                        print('Investimento feito') 
+                        df_summary = pd.DataFrame.from_dict(dict_summary)
+                        df_transactions = pd.DataFrame.from_dict(dict_transactions)
+                        
+                        newportdate = portfolio_date[:10]
+                        portdate = pd.to_datetime(newportdate, format='%Y-%m-%d')
+                        df_sp500 = df_sp500_to_pass.copy()
+                        df_dollar = df_dollar_to_pass.copy()
+
+                        df_coin = yf.download(coin_name, progress=False)
+                        df_coin = fb.df_converter(df_coin,df_sp500,df_dollar)
+
+
+                        df_transactions, df_summary = fb.portofolio(df_transactions,buy_sell,float(investment),portdate,df_coin,coin_name,df_summary)
+                        df_summary = atualization(df_summary)
+
+                        data = [go.Pie(labels=df_summary['Coin'],
+                                values=df_summary['Value'],
+                                hole=.4)]
+
+                        fig = go.Figure(px.pie(labels=df_summary['Coin'],
+                                values=df_summary['Value'],
+                                names = df_summary['Coin'],
+                                hole=.4,color_discrete_sequence=px.colors.qualitative.T10))
+                        fig.update_layout(width=800, height=600,paper_bgcolor='rgba(0,0,0,0)',
+                                            plot_bgcolor='rgba(0,0,0,0)', font_color = 'white')
+                        return n_purchases, fig, df_transactions.to_dict(orient='records'),df_summary.to_dict(orient='records'), portfolio_state
+                else:      
+                        print('Investimento feito -> criar dicionário por ser o primeiro') 
+                        df_summary = df_summary_to_pass.copy()
+                        df_transactions = df_transactions_to_pass.copy()
+                        newportdate = portfolio_date[:10]
+                        portdate = pd.to_datetime(newportdate, format='%Y-%m-%d')
+                        df_sp500 = df_sp500_to_pass.copy()
+                        df_dollar = df_dollar_to_pass.copy()
+
+                        df_coin = yf.download(coin_name, progress=False)
+                        df_coin = fb.df_converter(df_coin,df_sp500,df_dollar)
+
+
+                        df_transactions, df_summary = fb.portofolio(df_transactions,buy_sell,float(investment),portdate,df_coin,coin_name,df_summary)
+                        df_summary = atualization(df_summary)
+
+                        data = [go.Pie(labels=df_summary['Coin'],
+                                values=df_summary['Value'],
+                                hole=.4)]
+
+                        fig = go.Figure(px.pie(labels=df_summary['Coin'],
+                                values=df_summary['Value'],
+                                names = df_summary['Coin'],
+                                hole=.4,color_discrete_sequence=px.colors.qualitative.T10))
+                        fig.update_layout(width=800, height=600,paper_bgcolor='rgba(0,0,0,0)',
+                                            plot_bgcolor='rgba(0,0,0,0)', font_color = 'white')
+                        return n_purchases, fig, df_transactions.to_dict(orient='records'),df_summary.to_dict(orient='records'), portfolio_state    
+            else: 
+                print('Investimento por fazer: waiting') 
+                return dash.no_update # atualizar para só faz update
+        else:
+            print('Não tentou comprar')
+            return dash.no_update
     
-    if (coin_name != None) and (investment != None):
-       portfolio_value = 10
-
-    
-    return str(portfolio_value)
-
-
-
-################################CALLBACK - Analysis############################################
+########################################################################################
+################################CALLBACK - Analysis#####################################
 @app.callback(
     [Output('data_picker', 'start_date'),
      Output('data_picker', 'min_date_allowed')],
@@ -423,7 +528,6 @@ def callback_2(coin_name, start_date_pred, end_date_pred, open_close):
     df_sp500 = df_sp500_to_pass.copy()
     df_dollar = df_dollar_to_pass.copy()
     
-    print('oi')
     df_coin = fb.df_converter(df_coin, df_sp500, df_dollar)
     model = 'XGB'
     fig2 = fb.predictions(df_coin,model, 5,100,'Close')
