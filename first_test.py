@@ -250,8 +250,7 @@ tab_predictions =  html.Div([
     html.Div([
         html.Div([
             html.Div([
-                html.H4('Choose crypto'),
-                html.Br(), 
+                html.H4('Choose crypto, dates to use for prediction and number of days to predict.'),
                 dcc.Dropdown(
                     id='main_coin_dropdown_pred',
                     value='BTC-USD',
@@ -259,11 +258,18 @@ tab_predictions =  html.Div([
                     options=list_crypto, 
                     style={'color': 'black', 'background-color':'#d3d3d3'}) ,
                 dcc.DatePickerRange(
-                    id = 'data_picker_pred',
-                    start_date=date(2020, 6, 21),
+                    id = 'data_picker_pred',                    
+                    max_date_allowed = date.today(),
+                    end_date=date.today(),
                     display_format='DD-MM-YYYY',
-                    start_date_placeholder_text='DD-MM-YYYY',
-                    style={'color': 'black', 'background-color':'#d3d3d3'})            
+                    start_date_placeholder_text='Start Date',
+                    style={'color': 'black', 'background-color':'#d3d3d3'}),
+                html.Br(), 
+                html.Br(),                
+                dcc.Slider(5, 10, 1,
+                    value=5,
+                    id='days_to_pred'),
+                ##            
                 ], className='box', style={'margin-top': '1%'}), # crypo choice over here
             html.Div([
                 html.H4('Choose Target'), 
@@ -292,6 +298,18 @@ tab_predictions =  html.Div([
                 ], className='box', style={'margin-top': '1%'}), # crypo choice over here
             html.Div([
                 html.H4('Choose Target'), 
+                html.Div([
+                    html.H4('RMSE', style={'font-weight':'bold'}),
+                    html.H3(id='rmse')
+                        ],className='box_crypto_info',style={'width': '100%', 'justify-content': 'center'}),
+                html.Div([
+                    html.H4('MAE', style={'font-weight':'bold'}),
+                    html.H3(id='mae')
+                        ],className='box_crypto_info',style={'width': '100%', 'justify-content': 'center'}),
+                html.Div([
+                        html.H4('R Squared', style={'font-weight':'bold'}),
+                        html.H3(id='rsquared')
+                            ],className='box_crypto_info',style={'width': '100%', 'justify-content': 'center'}),
                 html.Br(),                                  
                 ], className='box', style={'margin-top': '1%','width': '60%', 'margin-left': '1%'}) # crypo choice over here
         ],className='info_box',style={'margin-left': '0%'})
@@ -339,7 +357,6 @@ app.layout = dbc.Container([
 )
 
 def callback_portfolio_create(start_portfolio, dict_summary, dict_transactions, coin_name, portfolio_date, buy_sell, investment, n_purchases, portfolio_state):
-    print(n_purchases)
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
 
     if 'start_portfolio' in changed_id:
@@ -361,7 +378,6 @@ def callback_portfolio_create(start_portfolio, dict_summary, dict_transactions, 
         portfolio_flunctuation_fig = get_percentage_img(port_total_value, invest_total_value, 50, prefix = '$')
         return fig, df_transactions.to_dict(orient='records'),df_summary.to_dict(orient='records'), portfolio_state, invest_total_value, portfolio_flunctuation_fig, avg_invest, big_invest    
     else: 
-        print(dict_transactions)
         # se tentou comprar
         if 'make_purchase' in changed_id:
             # se conseguir fazer investimento faz
@@ -549,39 +565,72 @@ def callback_1(coin_name, sec_coin_name, check_list, start_date, end_date):
 ################################CALLBACK - Predictions############################################
 
 @app.callback(
-    Output(component_id='graph_pred', component_property='figure'),
+    [Output(component_id='graph_pred', component_property='figure'),
+     Output(component_id='rmse', component_property='children'),
+     Output(component_id='mae', component_property='children'),
+     Output(component_id='rsquared', component_property='children')],
     [Input('main_coin_dropdown_pred', 'value'),
      Input('data_picker_pred', 'start_date'),
      Input('data_picker_pred', 'end_date'),
      Input('open_close', 'value'), 
+     Input('days_to_pred', 'value'), 
      ]
 )
 
 ################################CALLBACKFUNCTIONPREDICTIONS############################
-def callback_2(coin_name, start_date_pred, end_date_pred, open_close):
-    #print('oi')
-    #print(coin_name, type(start_date_pred), end_date_pred)
-    # create dataset
-    #print(open_close)
+def callback_2(coin_name, start_date_pred, end_date_pred, open_close, days_to_pred):
     df_coin = yf.download(coin_name,
                       progress=False,
     )
 
+    print(coin_name,start_date_pred,end_date_pred,open_close,days_to_pred)
+
     df_sp500 = df_sp500_to_pass.copy()
     df_dollar = df_dollar_to_pass.copy()
-    
-    df_coin = fb.df_converter(df_coin, df_sp500, df_dollar)
-    model = 'XGB'
-    fig2 = fb.predictions(df_coin,model, 5,100,'Close')
 
-    fig2.update_layout(
-        template="plotly_dark",
-        plot_bgcolor = 'rgba(0, 0, 0, 0)',
-        paper_bgcolor = 'rgba(0, 0, 0, 0)',
-        font_color="white",
-        font_size= 15
-    )
-    return fig2
+
+    if (coin_name != None) and (start_date_pred != None) and (end_date_pred != None) and (open_close != None) and (days_to_pred != None):
+        if open_close==0: 
+            target = 'Open'
+        else: target = 'Close'
+        #data conversion
+        newstartdate = start_date_pred[:10]
+        newenddate=end_date_pred[:10]
+        a = datetime.strptime(str(newstartdate), '%Y-%m-%d')
+        b = datetime.strptime(str(newenddate), '%Y-%m-%d')
+        delta = b - a
+        n_days = delta.days
+        df_coin = fb.df_converter(df_coin, df_sp500, df_dollar)        
+        model = 'XGB'
+        fig2 = fb.predictions(df_coin,model, 5,n_days,'Close')
+        fig2.update_layout(
+            template="plotly_dark",
+            plot_bgcolor = 'rgba(0, 0, 0, 0)',
+            paper_bgcolor = 'rgba(0, 0, 0, 0)',
+            font_color="white",
+            font_size= 15
+        )
+        rmse = 1000
+        mae = 1000
+        rsquare = 1000
+        return fig2, str(rmse), str(mae), str(rsquare)
+    else: 
+        print('waiting for all info to pred')
+        fig2 = go.Figure(px.pie(values=[0],
+                                names = ['']))
+        fig2.update_layout(
+            template="plotly_dark",
+            plot_bgcolor = 'rgba(0, 0, 0, 0)',
+            paper_bgcolor = 'rgba(0, 0, 0, 0)',
+            font_color="white",
+            font_size= 15
+        )
+        rmse = ''
+        mae = ''
+        rsquare = ''
+        return fig2, rmse, mae,rsquare
+
+
 ###################################################################################################################
 if __name__ == '__main__':
     app.run_server(debug=True)
