@@ -6,6 +6,6 @@ pandas
 plotly
 yfinance
 datetime
-talib
+ta-lib
 xgboost
 scikit-learn
