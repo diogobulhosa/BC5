@@ -1,12 +1,10 @@
 from dis import code_info
-from queue import Empty
 import dash
-from dash import dcc, dash_table
+from dash import dcc
 from dash import html
 from dash.dependencies import Input, Output
 import plotly.graph_objects as go
 import pandas as pd
-import numpy as np
 import plotly.express as px
 import dash_bootstrap_components as dbc
 import yfinance as yf

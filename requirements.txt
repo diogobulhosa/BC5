@@ -1,0 +1,11 @@
+gunicorn
+dash
+dash-bootstrap-components 
+numpy
+pandas
+plotly
+yfinance
+datetime
+talib
+xgboost
+scikit-learn
