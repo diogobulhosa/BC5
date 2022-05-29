@@ -14,10 +14,16 @@ from datetime import datetime as dt
 from dateutil.relativedelta import *
 from datetime import timedelta
 
+from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import r2_score
+
+import math
+
 # Models
-#from sklearn.ensemble import GradientBoostingRegressor
-#from sklearn.ensemble import RandomForestRegressor
-#from xgboost import XGBRegressor
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import RandomForestRegressor
+from xgboost import XGBRegressor
 #from sklearn.neural_network import MLPRegressor
 
 
@@ -113,16 +119,16 @@ def add_days(df, forecast_length):
     df = df.drop(['Date'], axis=1)
     return df
 
-def forecasting(model,df1, forecast_length):
-    df3 = df1[['Close', 'Date']]
+def forecasting(model,df1, forecast_length,target='Close'):
+    df3 = df1[[target, 'Date']]
     df3 = add_days(df3, forecast_length)
     finaldf = df1.drop('Date', axis=1)
     finaldf = finaldf.reset_index(drop=True)
     end_point = len(finaldf)
     x = end_point - forecast_length
     finaldf_train = finaldf.loc[:x - 1, :]
-    finaldf_train_x = finaldf_train.loc[:, finaldf_train.columns != 'Close']
-    finaldf_train_y = finaldf_train['Close']
+    finaldf_train_x = finaldf_train.loc[:, finaldf_train.columns != target]
+    finaldf_train_y = finaldf_train[target]
 
     fit = model.fit(finaldf_train_x, finaldf_train_y)
     yhat = []
@@ -131,17 +137,17 @@ def forecasting(model,df1, forecast_length):
     for i in range(forecast_length, 0, -1):
         y = end_point - i
         inputfile = finaldf.loc[y:end_point, :]
-        inputfile_x = inputfile.loc[:, inputfile.columns != 'Close']
+        inputfile_x = inputfile.loc[:, inputfile.columns != target]
         pred_set = inputfile_x.head(1)
         pred = fit.predict(pred_set)
-        df3.at[df3.index[df3_end - i], 'Close'] = pred[0]
+        df3.at[df3.index[df3_end - i], target] = pred[0]
         finaldf = df1.drop('Date', axis=1)
         finaldf = finaldf.reset_index(drop=True)
         yhat.append(pred)
     yhat = np.array(yhat)
     return yhat
 
-def predictions(df_coin,model_str, forecast_lenght = 5, train_lenght = 100,target = 'Close'):
+def predictions(df_coin, forecast_lenght = 5, train_lenght = 100,target = 'Close'):
     """ df_coin must be with date in index,
         forecast_lenght is the amount of days that we will predict
         model is the model predefined to use to get our predictions
@@ -149,18 +155,42 @@ def predictions(df_coin,model_str, forecast_lenght = 5, train_lenght = 100,targe
         target is what we are predicting
         This will return a graphic that will contain the data from the train set and our predictions
     """
-    if model_str == 'RF': 
-        #model = RandomForestRegressor(random_state=10,criterion='mae', max_depth=20, max_features='sqrt', n_estimators=50)
-        print('hello')
     df_coin = df_coin.tail(train_lenght)
     df_coin.reset_index(inplace=True)
     df_coin['Date'] = pd.to_datetime(df_coin['Date'], format='%Y-%m-%d')
 
+    df_test = df_coin.copy()
+    df_validation = df_test.tail(forecast_lenght)
+    df_test.drop(df_test.tail(forecast_lenght).index, inplace = True)
+    #Models
+    model_rf = RandomForestRegressor(random_state=10)
+    model_gb = GradientBoostingRegressor(random_state = 10)
+    model_xgb = XGBRegressor(random_state = 10)
+    print('hello')
+
+    #Metrics
+    forecast_test_rf = forecasting(model_rf,df_test,forecast_lenght,target)
+    forecast_test_gb = forecasting(model_gb,df_test,forecast_lenght,target)
+    forecast_test_xgb = forecasting(model_xgb,df_test,forecast_lenght,target)
+
+    forecast_test = (forecast_test_rf+forecast_test_gb+forecast_test_xgb)/3
+
+    value_mae = mean_absolute_error(df_validation[target], forecast_test)
+    value_mse = mean_squared_error(df_validation[target], forecast_test)
+    value_r2 = r2_score(df_validation[target], forecast_test)
+    value_rmse = math.sqrt(value_mse)
+
+
+
     fig2 = go.Figure()
     fig2.add_trace(go.Scatter(x=df_coin['Date'], y=df_coin[target], 
-                    name='Actual Values', mode='lines',line=dict(color='black')))
+                    name='Actual Values', mode='lines',line=dict(color='white')))
     #Predictions
-    forecast = forecasting(model,df_coin,forecast_lenght)
+    forecast_rf = forecasting(model_rf,df_coin,forecast_lenght,target)
+    forecast_gb = forecasting(model_gb,df_coin,forecast_lenght,target)
+    forecast_xgb = forecasting(model_xgb,df_coin,forecast_lenght,target)
+    #ensamble
+    forecast = (forecast_rf+forecast_gb+forecast_xgb)/3
     #df that will contain the predictions
     df_pred = pd.DataFrame(columns=['Date',target])
     #Adding the predictions to our dataset
@@ -172,32 +202,7 @@ def predictions(df_coin,model_str, forecast_lenght = 5, train_lenght = 100,targe
     df_pred['Date'] = pd.to_datetime(df_pred['Date'], format='%Y-%m-%d')
 
     fig2.add_trace(go.Scatter(x=df_pred['Date'], y=df_pred[target], name='Predictions', mode='lines',line=dict(color='red')))
-    fig2.update_layout(dict(updatemenus=[
-                        dict(
-                        type = "buttons",
-                        direction = "left",
-                        buttons=list([
-                                dict(
-                                args=["visible", "legendonly"],
-                                label="Deselect All",
-                                method="restyle"
-                                ),
-                                dict(
-                                args=["visible", True],
-                                label="Select All",
-                                method="restyle"
-                                )
-                        ]),
-                        pad={"r": 10, "t": 10},
-                        showactive=False,
-                        x=1,
-                        xanchor="right",
-                        y=1.1,
-                        yanchor="top"
-                        ),
-                ]
-        ))
-    return fig2
+    return fig2, value_rmse, value_mae, value_r2
 
 def list_converter(indicators): 
     for i,indicator in enumerate(indicators):
@@ -613,13 +618,14 @@ def candlestick(df, days, comparison = None, indicators = None):
 
 
 #functions for user
-def portofolio (df_transactions, signal, value, date, df_coin, coin, df_summary):
+def portofolio (df_transactions, value, date, df_coin, coin, df_summary):
     value_at_day = df_coin[df_coin.index == date]['Close'][0]
     percentage = value/value_at_day
-    list_to_add = [coin, date, percentage, value, signal]
+    list_to_add = [coin, date, percentage, value]
     df_length = len(df_transactions)
     df_transactions.loc[df_length] = list_to_add
 
+    
     for coins in df_transactions['Coin'].unique():
         if coins == coin:
             if ~(df_summary['Coin'].str.contains(coins).any()):
@@ -627,15 +633,18 @@ def portofolio (df_transactions, signal, value, date, df_coin, coin, df_summary)
                         df_summary.drop(df_summary.index[df_summary['Coin'] == coins], inplace=True)
                         df_length = len(df_summary)
                         actual_value = percentage * df_coin.tail(1)['Close'][0]
-                        df_summary.loc[df_length] = [coins, percentage,actual_value]
+                        df_summary.loc[df_length] = [coins, percentage,actual_value,value]
             else:
                     value_to_add = 0
+                    spent_to_add = 0
                     for idx,percentage in enumerate(df_transactions[df_transactions['Coin'] == coins]['Percentage']):
                         value_to_add += percentage
+                        spent_to_add += df_transactions['Value'][idx]
+                        print(spent_to_add)
                         actual_value = value_to_add * df_coin.tail(1)['Close'][0]
                         df_summary.drop(df_summary.index[df_summary['Coin'] == coins], inplace=True)
                         df_length = len(df_summary)
-                        df_summary.loc[df_length] = [coins, value_to_add,actual_value]
+                        df_summary.loc[df_length] = [coins, value_to_add,actual_value,spent_to_add]
 
     return df_transactions, df_summary
 

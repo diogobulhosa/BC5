@@ -40,8 +40,8 @@ df_sp500_to_pass = yf.download('^GSPC',
 df_dollar_to_pass = yf.download('DX=F',  
                       progress=False)
 #####
-df_summary_to_pass = pd.DataFrame(columns=['Coin', 'Percentage','Value'])
-df_transactions_to_pass = pd.DataFrame(columns=['Coin', 'Date', 'Percentage', 'Value', 'Signal'])
+df_summary_to_pass = pd.DataFrame(columns=['Coin', 'Percentage','Value','Spent'])
+df_transactions_to_pass = pd.DataFrame(columns=['Coin', 'Date', 'Percentage', 'Value'])
 made_purchase = 0
 #########################################################################
 ########################### DASH FUNCTIONS ##############################
@@ -111,12 +111,6 @@ tab_portfolio =  html.Div([
                     date=date(2020, 8, 25)), # change this
                 html.Br(), 
                 html.Br(), 
-                dbc.RadioItems(
-                    id='buy_sell',
-                    className='radio',
-                    options=[dict(label='Buy', value=0), dict(label='Sell', value=1)],
-                    inline=True
-                    ), 
                 html.Br(), 
                 html.H4('Investment'),   
                 dcc.Input(id="investment", type="text", placeholder="", debounce=True),
@@ -144,22 +138,11 @@ tab_portfolio =  html.Div([
                         ], className='info_box', style={'margin-top': '5%'})
                 ],style={'margin-left': '0%'}),
                 ## aqui 
+                dcc.Graph(id='porto_histogram', style={'margin-top':'5%'})
                
                 ], className='box', style={'margin-top': '1%','width': '60%', 'margin-left': '1%'}) # crypo choice over here
         ],className='info_box',style={'margin-left': '0%'}),
-    ## predictions graph
-    html.Div([
-            html.Div([
-                html.H4('Choose crypto'),
-                html.Br(),
-                ], className='box', style={'margin-top': '1%'}), # crypo choice over here
-            html.Div([
-                html.H4('Choose Target'), 
-                html.Br(),                                  
-                ], className='box', style={'margin-top': '1%','width': '60%', 'margin-left': '1%'}) # crypo choice over here
-        ],className='info_box',style={'margin-left': '0%'})
     
-
 
     ],style={'margin-left': '0%'}), 
         
@@ -289,7 +272,7 @@ tab_predictions =  html.Div([
     ## predictions graph
     html.Div([
             html.Div([
-                html.H4('Choose crypto'),
+                html.H4('Predictions Graph'),
                 html.Br(),
                  #### graph
                 dcc.Graph(
@@ -297,7 +280,7 @@ tab_predictions =  html.Div([
                 )          
                 ], className='box', style={'margin-top': '1%'}), # crypo choice over here
             html.Div([
-                html.H4('Choose Target'), 
+                html.H4('Metrics'), 
                 html.Div([
                     html.H4('RMSE', style={'font-weight':'bold'}),
                     html.H3(id='rmse')
@@ -329,9 +312,17 @@ app.layout = dbc.Container([
                     dbc.Tab(tab_portfolio, label="Portfolio", labelClassName ='labels', tabClassName = 'tabs', tab_style={'margin-left' : '0%'}),
                     dbc.Tab(tab_analysis, label="Analysis", labelClassName ='labels', tabClassName = 'tabs', tab_style={'margin-left' : '0%'}),
                     dbc.Tab(tab_predictions, label="Prediction", labelClassName ='labels', tabClassName = 'tabs', tab_style={'margin-left' : '0%'}),
-                ])
+                ]),
+                #ate aqui
+            html.Div([
+                html.Div([
+                    html.Br(),
+                    html.P(['GroupW', html.Br(),'Diogo Bulhosa (20210601), Francisco Costa (20211022), Mafalda Figueiredo (20210591), Rodrigo Pimenta (20210599)'], style={'font-size':'12px'}),
+                ], style={'width':'100%'}), 
+            ], className = 'footer', style={'display':'flex'}),
         ],className='boxtabs', style={'margin-top': '0%', 'margin-left': '5%'}),
     ],
+
     fluid=True,
 )
 
@@ -344,19 +335,19 @@ app.layout = dbc.Container([
      Output(component_id='total_invest', component_property='children'),
      Output(component_id='port_total_value', component_property='figure'),
      Output(component_id='avg_invest', component_property='children'),
-     Output(component_id='big_invest', component_property='children'),],
+     Output(component_id='big_invest', component_property='children'),
+     Output(component_id='porto_histogram', component_property='figure'),],
     [Input('start_portfolio', 'n_clicks'),
      Input('store_summary', 'data'),
      Input('store_transactions', 'data'),
      Input('main_coin_dropdown_portfolio', 'value'),
      Input('date_bought_portfolio', 'date'),
-     Input('buy_sell', 'value'), 
      Input('investment', 'value'),
      Input('make_purchase', 'n_clicks'), 
      Input('portfolio_state', 'data')]
 )
 
-def callback_portfolio_create(start_portfolio, dict_summary, dict_transactions, coin_name, portfolio_date, buy_sell, investment, n_purchases, portfolio_state):
+def callback_portfolio_create(start_portfolio, dict_summary, dict_transactions, coin_name, portfolio_date, investment, n_purchases, portfolio_state):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
 
     if 'start_portfolio' in changed_id:
@@ -376,7 +367,21 @@ def callback_portfolio_create(start_portfolio, dict_summary, dict_transactions, 
         port_total_value = 0 
         invest_total_value = 0
         portfolio_flunctuation_fig = get_percentage_img(port_total_value, invest_total_value, 50, prefix = '$')
-        return fig, df_transactions.to_dict(orient='records'),df_summary.to_dict(orient='records'), portfolio_state, invest_total_value, portfolio_flunctuation_fig, avg_invest, big_invest    
+
+        color_discrete_map = {'Spent': 'rgb(30,144,255)', 'Value': 'rgb(0,0,255)'}
+        fig2 = px.histogram(df_summary, x="Coin", y=['Spent',"Value"],
+                    barmode='group',color_discrete_map=color_discrete_map,
+                    height=400)
+
+        fig2.update_layout(
+                template="plotly_dark",
+                plot_bgcolor = 'rgba(0, 0, 0, 0)',
+                paper_bgcolor = 'rgba(0, 0, 0, 0)',
+                font_color="white",
+                font_size= 10,
+                margin={'t': 0,'l':0,'b':10,'r':0})
+        
+        return fig, df_transactions.to_dict(orient='records'),df_summary.to_dict(orient='records'), portfolio_state, invest_total_value, portfolio_flunctuation_fig, avg_invest, big_invest,fig2   
     else: 
         # se tentou comprar
         if 'make_purchase' in changed_id:
@@ -397,7 +402,7 @@ def callback_portfolio_create(start_portfolio, dict_summary, dict_transactions, 
                         df_coin = fb.df_converter(df_coin,df_sp500,df_dollar)
 
 
-                        df_transactions, df_summary = fb.portofolio(df_transactions,buy_sell,float(investment),portdate,df_coin,coin_name,df_summary)
+                        df_transactions, df_summary = fb.portofolio(df_transactions,float(investment),portdate,df_coin,coin_name,df_summary)
                         df_summary = atualization(df_summary)
 
                         data = [go.Pie(labels=df_summary['Coin'],
@@ -416,7 +421,19 @@ def callback_portfolio_create(start_portfolio, dict_summary, dict_transactions, 
                         port_total_value = df_summary['Value'].sum()
                         invest_total_value = df_transactions['Value'].sum()
                         portfolio_flunctuation_fig = get_percentage_img(port_total_value, invest_total_value, 50, prefix = '$')
-                        return fig, df_transactions.to_dict(orient='records'),df_summary.to_dict(orient='records'), portfolio_state, invest_total_value, portfolio_flunctuation_fig, avg_invest, big_invest 
+                        color_discrete_map = {'Spent': 'rgb(30,144,255)', 'Value': 'rgb(0,0,255)'}
+                        fig2 = px.histogram(df_summary, x="Coin", y=['Spent',"Value"],
+                                    barmode='group',color_discrete_map=color_discrete_map,
+                                    height=400)
+
+                        fig2.update_layout(
+                                template="plotly_dark",
+                                plot_bgcolor = 'rgba(0, 0, 0, 0)',
+                                paper_bgcolor = 'rgba(0, 0, 0, 0)',
+                                font_color="white",
+                                font_size= 10,
+                                margin={'t': 0,'l':0,'b':10,'r':0})
+                        return fig, df_transactions.to_dict(orient='records'),df_summary.to_dict(orient='records'), portfolio_state, invest_total_value, portfolio_flunctuation_fig, avg_invest, big_invest,fig2
                 else:      
                         print('Investimento feito -> criar dicionário por ser o primeiro') 
                         df_summary = df_summary_to_pass.copy()
@@ -430,7 +447,7 @@ def callback_portfolio_create(start_portfolio, dict_summary, dict_transactions, 
                         df_coin = fb.df_converter(df_coin,df_sp500,df_dollar)
 
 
-                        df_transactions, df_summary = fb.portofolio(df_transactions,buy_sell,float(investment),portdate,df_coin,coin_name,df_summary)
+                        df_transactions, df_summary = fb.portofolio(df_transactions,float(investment),portdate,df_coin,coin_name,df_summary)
                         df_summary = atualization(df_summary)
 
                         data = [go.Pie(labels=df_summary['Coin'],
@@ -448,7 +465,19 @@ def callback_portfolio_create(start_portfolio, dict_summary, dict_transactions, 
                         port_total_value = df_summary['Value'].sum()
                         invest_total_value = df_transactions['Value'].sum()
                         portfolio_flunctuation_fig = get_percentage_img(port_total_value, invest_total_value, 50, prefix = '$')
-                        return fig, df_transactions.to_dict(orient='records'),df_summary.to_dict(orient='records'), portfolio_state, invest_total_value, portfolio_flunctuation_fig, avg_invest, big_invest 
+                        color_discrete_map = {'Spent': 'rgb(30,144,255)', 'Value': 'rgb(0,0,255)'}
+                        fig2 = px.histogram(df_summary, x="Coin", y=['Spent',"Value"],
+                                    barmode='group',color_discrete_map=color_discrete_map,
+                                    height=400)
+
+                        fig2.update_layout(
+                                template="plotly_dark",
+                                plot_bgcolor = 'rgba(0, 0, 0, 0)',
+                                paper_bgcolor = 'rgba(0, 0, 0, 0)',
+                                font_color="white",
+                                font_size= 10,
+                                margin={'t': 0,'l':0,'b':10,'r':0})
+                        return fig, df_transactions.to_dict(orient='records'),df_summary.to_dict(orient='records'), portfolio_state, invest_total_value, portfolio_flunctuation_fig, avg_invest, big_invest, fig2
             else: 
                 print('Investimento por fazer: waiting') 
                 return dash.no_update # atualizar para só faz update
@@ -555,10 +584,17 @@ def callback_1(coin_name, sec_coin_name, check_list, start_date, end_date):
     today_low = df_coin_day[df_coin_day.index >= today]['Low'].min()
     price_range = str(round(today_low, 5))+' - '+str(round(today_high, 5))
       
+    if sec_coin_name != None:
+        sec_coin_name = yf.download(sec_coin_name,
+                    progress=False,
+        )
 
     # first viz 
     #print('aqui')
-    fig = fb.candlestick(df_coin, days=n_days, indicators = check_list)
+
+    fig = fb.candlestick(df_coin,comparison=sec_coin_name, days=n_days, indicators = check_list)
+
+
 
     return fig,curr_price_fig,today_open_price,price_range_weeks,volume_today2week_fig,price_range
 ###################################################################################################################
@@ -591,8 +627,8 @@ def callback_2(coin_name, start_date_pred, end_date_pred, open_close, days_to_pr
 
     if (coin_name != None) and (start_date_pred != None) and (end_date_pred != None) and (open_close != None) and (days_to_pred != None):
         if open_close==0: 
-            target = 'Open'
-        else: target = 'Close'
+            target_dash = 'Open'
+        else: target_dash = 'Close'
         #data conversion
         newstartdate = start_date_pred[:10]
         newenddate=end_date_pred[:10]
@@ -600,9 +636,9 @@ def callback_2(coin_name, start_date_pred, end_date_pred, open_close, days_to_pr
         b = datetime.strptime(str(newenddate), '%Y-%m-%d')
         delta = b - a
         n_days = delta.days
+        print(n_days)
         df_coin = fb.df_converter(df_coin, df_sp500, df_dollar)        
-        model = 'XGB'
-        fig2 = fb.predictions(df_coin,model, 5,n_days,'Close')
+        fig2,rmse,mae,rsquare = fb.predictions(df_coin =df_coin, forecast_lenght = days_to_pred,train_lenght = int(n_days),target=target_dash)
         fig2.update_layout(
             template="plotly_dark",
             plot_bgcolor = 'rgba(0, 0, 0, 0)',
@@ -610,9 +646,6 @@ def callback_2(coin_name, start_date_pred, end_date_pred, open_close, days_to_pr
             font_color="white",
             font_size= 15
         )
-        rmse = 1000
-        mae = 1000
-        rsquare = 1000
         return fig2, str(rmse), str(mae), str(rsquare)
     else: 
         print('waiting for all info to pred')
