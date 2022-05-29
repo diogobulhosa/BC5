@@ -1,1 +1,1 @@
-web: gunicorn cryptoforecaster:server
+web: gunicorn crypto_forecast:server
