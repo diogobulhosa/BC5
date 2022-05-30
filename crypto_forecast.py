@@ -38,7 +38,7 @@ df_sp500_to_pass = yf.download('^GSPC',
 df_dollar_to_pass = yf.download('DX=F',  
                       progress=False)
 #####
-df_summary_to_pass = pd.DataFrame(columns=['Coin', 'Percentage','Value','Spent'])
+df_summary_to_pass = pd.DataFrame(columns=['Coin', 'Percentage','Spent','Value'])
 df_transactions_to_pass = pd.DataFrame(columns=['Coin', 'Date', 'Percentage', 'Value'])
 made_purchase = 0
 #########################################################################
@@ -66,6 +66,9 @@ def get_percentage_img(current_value, prev_value, height_size, prefix):
 
 def atualization(df_summary):
     value_list=[]
+    print('*********************************************************************************************************************')
+    print('antes')
+    print(df_summary)
     for idx,coins in enumerate(df_summary['Coin'].unique()):
         df_coin = yf.download(coins, progress=False)
         value_to_add = df_coin.tail(1)['Close'][0] * df_summary[df_summary['Coin'] == coins]['Percentage'][idx]
@@ -73,6 +76,9 @@ def atualization(df_summary):
     
     df_summary.drop('Value', axis=1, inplace=True)
     df_summary['Value'] = value_list
+    print('depois')
+    print(df_summary)
+    print('*********************************************************************************************************************')
     return df_summary
 ##########################################################################
 
@@ -402,10 +408,7 @@ def callback_portfolio_create(start_portfolio, dict_summary, dict_transactions, 
 
                         df_transactions, df_summary = fb.portofolio(df_transactions,float(investment),portdate,df_coin,coin_name,df_summary)
                         df_summary = atualization(df_summary)
-
-                        data = [go.Pie(labels=df_summary['Coin'],
-                                values=df_summary['Value'],
-                                hole=.4)]
+                        print('ali',df_summary)
 
                         fig = go.Figure(px.pie(labels=df_summary['Coin'],
                                 values=df_summary['Value'],
@@ -447,6 +450,7 @@ def callback_portfolio_create(start_portfolio, dict_summary, dict_transactions, 
 
                         df_transactions, df_summary = fb.portofolio(df_transactions,float(investment),portdate,df_coin,coin_name,df_summary)
                         df_summary = atualization(df_summary)
+                        print('aqui',df_summary)
 
                         data = [go.Pie(labels=df_summary['Coin'],
                                 values=df_summary['Value'],
@@ -571,11 +575,13 @@ def callback_1(coin_name, sec_coin_name, check_list, start_date, end_date):
     price_range_weeks = str(round(low_fiftytwo_weeks, 5))+' - '+str(round(high_fiftytwo_weeks, 5))
 
     # last volume 
-    yesterday = pd.to_datetime(datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)-timedelta(days=1))
-    weekly_yesterday = pd.to_datetime(datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)-timedelta(days=7))
-    before_volume = df_coin[df_coin.index == weekly_yesterday]['Volume'][0]
-    last_volume = df_coin[df_coin.index == yesterday]['Volume'][0]
-    volume_today2week_fig = get_percentage_img(last_volume, before_volume, 50,'')
+    #yesterday = pd.to_datetime(datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)-timedelta(days=1))
+    #weekly_yesterday = pd.to_datetime(datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)-timedelta(days=7))
+    #before_volume = df_coin[df_coin.index == weekly_yesterday]['Volume'][0]
+    #last_volume = df_coin[df_coin.index == yesterday]['Volume'][0]
+    #volume_today2week_fig = get_percentage_img(last_volume, before_volume, 50,'')
+    volume_today2week_fig = get_percentage_img(100, 200, 50,'')
+
 
     # price range today
     today_high = df_coin_day[df_coin_day.index >= today]['High'].max()

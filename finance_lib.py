@@ -618,10 +618,10 @@ def candlestick(df, days, comparison = None, indicators = None):
 
 
 #functions for user
-def portofolio (df_transactions, signal, value, date, df_coin, coin, df_summary):
+def portofolio (df_transactions, value, date, df_coin, coin, df_summary):
     value_at_day = df_coin[df_coin.index == date]['Close'][0]
     percentage = value/value_at_day
-    list_to_add = [coin, date, percentage, value, signal]
+    list_to_add = [coin, date, percentage, value]
     df_length = len(df_transactions)
     df_transactions.loc[df_length] = list_to_add
 
@@ -629,22 +629,23 @@ def portofolio (df_transactions, signal, value, date, df_coin, coin, df_summary)
     for coins in df_transactions['Coin'].unique():
         if coins == coin:
             if ~(df_summary['Coin'].str.contains(coins).any()):
-                    for idx,percentage in enumerate(df_transactions['Percentage']):
-                        df_summary.drop(df_summary.index[df_summary['Coin'] == coins], inplace=True)
-                        df_length = len(df_summary)
-                        actual_value = percentage * df_coin.tail(1)['Close'][0]
-                        df_summary.loc[df_length] = [coins, percentage,actual_value,value]
+                for idx,percentage in enumerate(df_transactions['Percentage']):
+                    df_summary.drop(df_summary.index[df_summary['Coin'] == coins], inplace=True)
+                    df_length = len(df_summary)
+                    actual_value = percentage * df_coin.tail(1)['Close'][0]
+                    df_summary.loc[df_length] = [coins, percentage,value,actual_value]
             else:
-                    value_to_add = 0
-                    spent_to_add = 0
-                    for idx,percentage in enumerate(df_transactions[df_transactions['Coin'] == coins]['Percentage']):
-                        value_to_add += percentage
-                        spent_to_add += df_transactions['Value'][idx]
-                        print(spent_to_add)
-                        actual_value = value_to_add * df_coin.tail(1)['Close'][0]
-                        df_summary.drop(df_summary.index[df_summary['Coin'] == coins], inplace=True)
-                        df_length = len(df_summary)
-                        df_summary.loc[df_length] = [coins, value_to_add,actual_value,spent_to_add]
+                value_to_add = 0
+                spent_to_add = 0
+                for idx,percentage in enumerate(df_transactions[df_transactions['Coin'] == coin]['Percentage']):
+                    value_to_add += percentage
+                    spent_to_add += df_transactions['Value'][idx]
+                    actual_value = value_to_add * df_coin.tail(1)['Close'][0]
+                df_summary = df_summary[df_summary['Coin'] != coins]
+                df_summary.reset_index(inplace=True,drop=True)
+                df_length = len(df_summary)
+                df_summary.loc[df_length] = [coins, value_to_add,spent_to_add,actual_value]
+    print(df_summary)
 
     return df_transactions, df_summary
 
