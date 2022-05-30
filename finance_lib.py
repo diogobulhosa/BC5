@@ -618,10 +618,10 @@ def candlestick(df, days, comparison = None, indicators = None):
 
 
 #functions for user
-def portofolio (df_transactions, value, date, df_coin, coin, df_summary):
+def portofolio (df_transactions, signal, value, date, df_coin, coin, df_summary):
     value_at_day = df_coin[df_coin.index == date]['Close'][0]
     percentage = value/value_at_day
-    list_to_add = [coin, date, percentage, value]
+    list_to_add = [coin, date, percentage, value, signal]
     df_length = len(df_transactions)
     df_transactions.loc[df_length] = list_to_add
 
