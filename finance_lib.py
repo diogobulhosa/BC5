@@ -163,7 +163,7 @@ def predictions(df_coin, forecast_lenght = 5, train_lenght = 100,target = 'Close
     df_validation = df_test.tail(forecast_lenght)
     df_test.drop(df_test.tail(forecast_lenght).index, inplace = True)
     #Models
-    model_rf = RandomForestRegressor(random_state=10)
+    model_rf = RandomForestRegressor(random_state=10,criterion='mae', max_depth=20, max_features='auto', n_estimators=30)
     model_gb = GradientBoostingRegressor(random_state = 10)
     model_xgb = XGBRegressor(random_state = 10)
     print('hello')
