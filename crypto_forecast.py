@@ -405,7 +405,7 @@ def callback_portfolio_create(start_portfolio, dict_summary, dict_transactions, 
                         df_coin = yf.download(coin_name, progress=False)
                         df_coin = fb.df_converter(df_coin,df_sp500,df_dollar)
 
-
+                        print(investment)
                         df_transactions, df_summary = fb.portofolio(df_transactions,float(investment),portdate,df_coin,coin_name,df_summary)
                         df_summary = atualization(df_summary)
                         print('ali',df_summary)

@@ -639,7 +639,7 @@ def portofolio (df_transactions, value, date, df_coin, coin, df_summary):
                 spent_to_add = 0
                 for idx,percentage in enumerate(df_transactions[df_transactions['Coin'] == coin]['Percentage']):
                     value_to_add += percentage
-                    spent_to_add += df_transactions['Value'][idx]
+                    spent_to_add = sum(df_transactions[df_transactions['Coin'] == coin]['Value'])
                     actual_value = value_to_add * df_coin.tail(1)['Close'][0]
                 df_summary = df_summary[df_summary['Coin'] != coins]
                 df_summary.reset_index(inplace=True,drop=True)
