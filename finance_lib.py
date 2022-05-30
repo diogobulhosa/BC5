@@ -163,17 +163,17 @@ def predictions(df_coin, forecast_lenght = 5, train_lenght = 100,target = 'Close
     df_validation = df_test.tail(forecast_lenght)
     df_test.drop(df_test.tail(forecast_lenght).index, inplace = True)
     #Models
-    model_rf = RandomForestRegressor(random_state=10)
+    model_rf = RandomForestRegressor(random_state=10,criterion='mae', max_depth=20, max_features='auto', n_estimators=30)
     model_gb = GradientBoostingRegressor(random_state = 10)
     model_xgb = XGBRegressor(random_state = 10)
     print('hello')
 
     #Metrics
-    forecast_test_rf = forecasting(model_rf,df_test,forecast_lenght,target)
-    forecast_test_gb = forecasting(model_gb,df_test,forecast_lenght,target)
-    forecast_test_xgb = forecasting(model_xgb,df_test,forecast_lenght,target)
+    forecast_test = forecasting(model_rf,df_test,forecast_lenght,target)
+    #forecast_test_gb = forecasting(model_gb,df_test,forecast_lenght,target)
+    #forecast_test_xgb = forecasting(model_xgb,df_test,forecast_lenght,target)
 
-    forecast_test = (forecast_test_rf+forecast_test_gb+forecast_test_xgb)/3
+    #forecast_test = (forecast_test_rf+forecast_test_gb+forecast_test_xgb)/3
 
     value_mae = mean_absolute_error(df_validation[target], forecast_test)
     value_mse = mean_squared_error(df_validation[target], forecast_test)
@@ -186,11 +186,11 @@ def predictions(df_coin, forecast_lenght = 5, train_lenght = 100,target = 'Close
     fig2.add_trace(go.Scatter(x=df_coin['Date'], y=df_coin[target], 
                     name='Actual Values', mode='lines',line=dict(color='white')))
     #Predictions
-    forecast_rf = forecasting(model_rf,df_coin,forecast_lenght,target)
-    forecast_gb = forecasting(model_gb,df_coin,forecast_lenght,target)
-    forecast_xgb = forecasting(model_xgb,df_coin,forecast_lenght,target)
+    forecast = forecasting(model_rf,df_coin,forecast_lenght,target)
+    #forecast_gb = forecasting(model_gb,df_coin,forecast_lenght,target)
+    #forecast_xgb = forecasting(model_xgb,df_coin,forecast_lenght,target)
     #ensamble
-    forecast = (forecast_rf+forecast_gb+forecast_xgb)/3
+    #forecast = (forecast_rf+forecast_gb+forecast_xgb)/3
     #df that will contain the predictions
     df_pred = pd.DataFrame(columns=['Date',target])
     #Adding the predictions to our dataset
