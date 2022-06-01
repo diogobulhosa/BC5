@@ -309,7 +309,7 @@ tab_predictions =  html.Div([
 
 app.layout = dbc.Container([               
         html.Div([
-            html.H1('INVESTMENT4ALL'),
+            html.H1('INVESTMENTS4SOME'),
             html.Hr(style={'borderWidth': "0.3vh", "width": "100%", "backgroundColor": "#B4E1FF","opacity":"1"}),
             html.H2('Crypto Forecaster'),
             dbc.Tabs([
